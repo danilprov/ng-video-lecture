@@ -1,6 +1,8 @@
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
+import os
+import time
 
 # hyperparameters
 batch_size = 64 # how many independent sequences will we process in parallel?
@@ -14,6 +16,8 @@ n_embd = 384
 n_head = 6
 n_layer = 6
 dropout = 0.2
+out_dir = 'out'
+os.makedirs(out_dir, exist_ok=True)
 # ------------
 
 torch.manual_seed(1337)
@@ -195,6 +199,7 @@ class GPTLanguageModel(nn.Module):
             idx = torch.cat((idx, idx_next), dim=1) # (B, T+1)
         return idx
 
+start_time = time.time()
 model = GPTLanguageModel()
 m = model.to(device)
 # print the number of parameters in the model
@@ -218,6 +223,18 @@ for iter in range(max_iters):
     optimizer.zero_grad(set_to_none=True)
     loss.backward()
     optimizer.step()
+
+best_val_loss = losses['val']
+checkpoint = {
+    'model': model.state_dict(),
+    'optimizer': optimizer.state_dict(),
+    'model_args': model,
+    'iter_num': iter,
+    'best_val_loss': best_val_loss
+}
+print(f"saving checkpoint to {out_dir}")
+torch.save(checkpoint, os.path.join(out_dir, 'ckpt.pt'))
+print("--- %s seconds ---" % (time.time() - start_time))
 
 # generate from the model
 context = torch.zeros((1, 1), dtype=torch.long, device=device)
